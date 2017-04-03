@@ -1,0 +1,1 @@
+### Simplebox widget manual test
