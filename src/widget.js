@@ -13,6 +13,9 @@ import ModelRange from '@ckeditor/ckeditor5-engine/src/model/range';
 import ModelSelection from '@ckeditor/ckeditor5-engine/src/model/selection';
 import ModelElement from '@ckeditor/ckeditor5-engine/src/model/element';
 import ViewEditableElement from '@ckeditor/ckeditor5-engine/src/view/editableelement';
+import ViewText from '@ckeditor/ckeditor5-engine/src/view/text';
+import ViewRange from '@ckeditor/ckeditor5-engine/src/view/range';
+import ViewPosition from '@ckeditor/ckeditor5-engine/src/view/position';
 import RootEditableElement from '@ckeditor/ckeditor5-engine/src/view/rooteditableelement';
 import { isWidget, WIDGET_SELECTED_CLASS_NAME, getLabel } from './utils';
 import { keyCodes, getCode, parseKeystroke } from '@ckeditor/ckeditor5-utils/src/keyboard';
@@ -44,28 +47,30 @@ export default class Widget extends Plugin {
 	init() {
 		const viewDocument = this.editor.editing.view;
 
-		let previouslySelected;
+		this._previouslySelected = new Set();
 
 		// Model to view selection converter.
 		// Converts selection placed over widget element to fake selection
 		this.editor.editing.modelToView.on( 'selection', ( evt, data, consumable, conversionApi ) => {
-			// Remove selected class from previously selected widget.
-			if ( previouslySelected && previouslySelected.hasClass( WIDGET_SELECTED_CLASS_NAME ) ) {
-				previouslySelected.removeClass( WIDGET_SELECTED_CLASS_NAME );
-			}
+			// Remove selected class from previously selected widgets.
+			this._clearPreviouslySelected();
 
 			const viewSelection = conversionApi.viewSelection;
-
-			// Check if widget was clicked or some sub-element.
 			const selectedElement = viewSelection.getSelectedElement();
 
-			if ( !selectedElement || !isWidget( selectedElement ) ) {
-				return;
-			}
+			for ( const value of viewSelection.getFirstRange() ) {
+				const node = value.item;
 
-			viewSelection.setFake( true, { label: getLabel( selectedElement ) } );
-			selectedElement.addClass( WIDGET_SELECTED_CLASS_NAME );
-			previouslySelected = selectedElement;
+				if ( node.is( 'element' ) && isWidget( node ) ) {
+					node.addClass( WIDGET_SELECTED_CLASS_NAME );
+					this._previouslySelected.add( node );
+
+					// Check if widget was single element selected.
+					if ( node == selectedElement ) {
+						viewSelection.setFake( true, { label: getLabel( selectedElement ) } );
+					}
+				}
+			}
 		}, { priority: 'low' } );
 
 		// If mouse down is pressed on widget - create selection over whole widget.
@@ -74,6 +79,46 @@ export default class Widget extends Plugin {
 
 		// Handle custom keydown behaviour.
 		this.listenTo( viewDocument, 'keydown', ( ...args ) => this._onKeydown( ...args ), { priority: 'high' } );
+
+		// Try to fix selection which somehow ended inside the widget, where it shouldn't be.
+		this.editor.editing.view.on( 'selectionChange', ( evt, data ) => {
+			const newSelection = data.newSelection;
+			const newRanges = [];
+
+			for ( let range of newSelection.getRanges() ) {
+				const start = range.start;
+				const end = range.end;
+				const startWidget = getWidgetAncestor( start.parent );
+				const endWidget = getWidgetAncestor( end.parent );
+
+				// // Whole range is placed inside widget - put selection around that widget.
+				if ( startWidget !== null && startWidget == endWidget ) {
+					newRanges.push( ViewRange.createOn( startWidget ) );
+
+					continue;
+				}
+
+				// // Range start is placed inside the widget - start selection after the widget.
+				// if ( startWidget !== null ) {
+				// 	newRanges.push( new ViewRange( ViewPosition.createAfter( startWidget ), end ) );
+                //
+				// 	continue;
+				// }
+
+				// Range end is placed inside widget - end selection before the widget.
+				// if ( endWidget !== null ) {
+				// 	newRanges.push( new ViewRange( start, ViewPosition.createBefore( endWidget ) ) );
+                //
+				// 	continue;
+				// }
+
+				newRanges.push( range );
+			}
+
+			if ( newRanges.length ) {
+				newSelection.setRanges( newRanges, newSelection.isBackward );
+			}
+		}, { priority: 'high' } );
 	}
 
 	/**
@@ -293,6 +338,14 @@ export default class Widget extends Plugin {
 
 		return null;
 	}
+
+	_clearPreviouslySelected() {
+		for( const widget of this._previouslySelected ) {
+			widget.removeClass( WIDGET_SELECTED_CLASS_NAME );
+		}
+
+		this._previouslySelected.clear();
+	}
 }
 
 // Returns 'true' if provided key code represents one of the arrow keys.
@@ -336,4 +389,30 @@ function isInsideNestedEditable( element ) {
 	}
 
 	return false;
+}
+
+// Returns widget which is an ancestor of given node.
+// Returns `null` if there is no widget ancestor or node is placed inside nested editable.
+//
+// @private
+// @param {module:engine/view/node~Node} node
+// @return {module:engine/view/Element|null}
+function getWidgetAncestor( node ) {
+	if ( node instanceof ViewText ) {
+		node = node.parent;
+	}
+
+	while ( node ) {
+		if ( node instanceof ViewEditableElement ) {
+			return null;
+		}
+
+		if ( isWidget( node ) ) {
+			return node;
+		}
+
+		node = node.parent;
+	}
+
+	return null;
 }
