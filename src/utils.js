@@ -92,7 +92,7 @@ export function isWidget( node ) {
 export function toWidget( element, writer, options = {} ) {
 	// The selection on Edge behaves better when the whole editor contents is in a single contenteditable element.
 	// https://github.com/ckeditor/ckeditor5/issues/1079
-	if ( !env.isEdge ) {
+	if ( !env.isEdge && !env.isIe11 ) {
 		writer.setAttribute( 'contenteditable', 'false', element );
 	}
 
