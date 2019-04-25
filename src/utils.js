@@ -41,7 +41,6 @@ export function isWidget( node ) {
 	return !!node.getCustomProperty( 'widget' );
 }
 
-/* eslint-disable max-len */
 /**
  * Converts the given {@link module:engine/view/element~Element} to a widget in the following way:
  *
@@ -88,7 +87,6 @@ export function isWidget( node ) {
  * @param {Boolean} [options.hasSelectionHandler=false] If `true`, the widget will have a selection handler added.
  * @returns {module:engine/view/element~Element} Returns the same element.
  */
-/* eslint-enable max-len */
 export function toWidget( element, writer, options = {} ) {
 	// The selection on Edge behaves better when the whole editor contents is in a single contenteditable element.
 	// https://github.com/ckeditor/ckeditor5/issues/1079
