@@ -97,8 +97,11 @@ export default class WidgetToolbarRepository extends Plugin {
 		super.destroy();
 
 		for ( const toolbarConfig of this._toolbarDefinitions.values() ) {
-			toolbarConfig.view.destroy();
+			toolbarConfig.view && toolbarConfig.view.destroy();
+			toolbarConfig.view = null;
 		}
+
+		this._toolbarDefinitions.clear();
 	}
 
 	/**
