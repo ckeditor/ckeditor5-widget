@@ -56,6 +56,13 @@ export default class Resizer {
 		 */
 		this._viewResizerWrapper = null;
 
+		/**
+		 * @observable
+		 * @readonly
+		 * @member {Boolean} #isEnabled
+		 */
+		this.set( 'isEnabled', true );
+
 		this.decorate( 'begin' );
 		this.decorate( 'cancel' );
 		this.decorate( 'commit' );
@@ -81,6 +88,15 @@ export default class Resizer {
 			that._domResizerWrapper = domElement;
 
 			return domElement;
+		} );
+
+		this.on( 'set:isEnabled', ( event, name, newValue ) => {
+			if ( newValue ) {
+				writer.removeClass( 'ck-hidden', this._viewResizerWrapper );
+				this.cancel();
+			} else {
+				writer.addClass( 'ck-hidden', this._viewResizerWrapper );
+			}
 		} );
 
 		// Append resizer wrapper to the widget's wrapper.
@@ -173,8 +189,10 @@ export default class Resizer {
 	 * @protected
 	 */
 	_cleanup() {
-		this.sizeUI.dismiss();
-		this.sizeUI.isVisible = false;
+		if ( this.sizeUI ) {
+			this.sizeUI.dismiss();
+			this.sizeUI.isVisible = false;
+		}
 	}
 
 	/**
