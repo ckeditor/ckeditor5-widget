@@ -188,6 +188,10 @@ export default class Resizer {
 		const unit = this._options.unit;
 		const newValue = ( unit === '%' ? this.state.proposedWidthPercents : this.state.proposedWidth ) + this._options.unit;
 
+		this._options.editor.editing.view.change( writer => {
+			writer.setStyle( 'width', this.state.originalWidth + 'px', this._options.viewElement );
+		} );
+
 		this._options.onCommit( newValue );
 
 		this._cleanup();
