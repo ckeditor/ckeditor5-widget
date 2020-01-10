@@ -194,6 +194,10 @@ export default class Resizer {
 
 		this._options.onCommit( newValue );
 
+		const domHandleHost = this._getHandleHost();
+		const domHandleHostRect = new Rect( domHandleHost );
+		this.redraw( domHandleHostRect );
+
 		this._cleanup();
 	}
 
